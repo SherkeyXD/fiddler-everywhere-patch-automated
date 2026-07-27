@@ -1,5 +1,7 @@
 name: Latest Version - Workflow Dispatch
 
+permissions: {}
+
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +12,9 @@ on:
         type: choice
         options:
           - Windows (x86_64)
+          - Windows (arm64)
           - Linux (x86_64)
+          - Mac (arm64)
       patch-server-port:
         description: 'Patch server port (useful for resolving port conflicts)"'
         required: true
@@ -71,7 +75,7 @@ jobs:
         run: |
           $extension = 'not-selected'
     
-          if ($env:OS_ARCH -eq 'Windows (x86_64)') {
+          if ($env:OS_ARCH -eq 'Windows (x86_64)' -or $env:OS_ARCH -eq 'Windows (arm64)') {
             $extension = 'dll'
           } elseif ($env:OS_ARCH -eq 'Linux (x86_64)') {
             $extension = 'so'
@@ -88,7 +92,7 @@ jobs:
         run: |
           $arch = 'not-selected'
     
-          if ($env:OS_ARCH -eq 'Windows (x86_64)') {
+          if ($env:OS_ARCH -eq 'Windows (x86_64)' -or $env:OS_ARCH -eq 'Windows (arm64)') {
             $arch = 'win32-x86_64'
           } elseif ($env:OS_ARCH -eq 'Linux (x86_64)') {
             $arch = 'linux-x86_64'
@@ -241,7 +245,7 @@ jobs:
           if-no-files-found: error
 
   download-fiddler-everywhere-windows:
-    if: ${{ github.event.inputs.os-and-arch == 'Windows (x86_64)' }}
+    if: ${{ github.event.inputs.os-and-arch == 'Windows (x86_64)' || github.event.inputs.os-and-arch == 'Windows (arm64)' }}
     runs-on: ubuntu-latest
     needs: 
       - scrape_fe_version
@@ -323,9 +327,10 @@ jobs:
     runs-on: mac-latest
     needs: 
       - scrape_fe_version
+      - init_os_arch
 
     env: 
-      ARCH_CODE: ${{ github.event.inputs.arch_code }}
+      ARCH_CODE: ${{ needs.init_os_arch.outputs.arch_code }}
 
     steps:
       - name: Build URL & Download
@@ -356,9 +361,10 @@ jobs:
             exit 1
           }
 
-      - name: Extract Dmg 
+      - name: Extract DMG
         run: |
-          hdiutil attach FiddlerEverywhere.dmg
+          New-Item -ItemType Directory -Path "fe_app" -Force
+          hdiutil attach FiddlerEverywhereSetup.dmg
           cp -R /Volumes/FiddlerEverywhere/* ./fe_app/
 
       - name: List fe_app
